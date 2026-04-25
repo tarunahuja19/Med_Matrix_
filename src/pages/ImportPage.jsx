@@ -104,44 +104,60 @@ function ImportPage() {
   }
 
   const handleStartImport = async () => {
-    console.log('[v0] handleStartImport called, files:', files)
-    setIsImporting(true)
+    console.log('[v0] handleStartImport called')
+    console.log('[v0] Files count:', files.length)
+    console.log('[v0] processNpyFile available:', typeof processNpyFile === 'function')
     
-    // Find NPY files to process (check for .file property which contains the actual File object)
-    const npyFiles = files.filter(f => {
-      const isNpy = f.name.toLowerCase().endsWith('.npy')
-      const hasFile = !!f.file
-      console.log('[v0] Checking file:', f.name, 'isNpy:', isNpy, 'hasFile:', hasFile)
-      return isNpy && hasFile
-    })
-    
-    console.log('[v0] NPY files found:', npyFiles.length)
-    
-    if (npyFiles.length > 0) {
-      // Process the first NPY file
-      const npyFile = npyFiles[0]
-      console.log('[v0] Processing file:', npyFile.name)
-      const result = await processNpyFile(npyFile.file)
-      console.log('[v0] Process result:', result)
-      
-      if (result.success) {
-        // Update file status
-        setFiles(prev => prev.map(f => 
-          f.id === npyFile.id ? { ...f, status: 'imported' } : f
-        ))
-        // Navigate to 2D viewer
-        navigate('/viewer-2d')
-      } else {
-        // Update file status to error
-        setFiles(prev => prev.map(f => 
-          f.id === npyFile.id ? { ...f, status: 'error', error: result.error } : f
-        ))
-      }
-    } else {
-      console.log('[v0] No NPY files with file object found. Files in list:', files.map(f => ({ name: f.name, hasFile: !!f.file })))
+    if (typeof processNpyFile !== 'function') {
+      console.error('[v0] processNpyFile is not a function!')
+      alert('Error: MRI processing context not initialized. Please refresh the page.')
+      return
     }
     
-    setIsImporting(false)
+    setIsImporting(true)
+    
+    try {
+      // Find NPY files to process (check for .file property which contains the actual File object)
+      const npyFiles = files.filter(f => {
+        const isNpy = f.name.toLowerCase().endsWith('.npy')
+        const hasFile = !!f.file
+        console.log('[v0] Checking file:', f.name, 'isNpy:', isNpy, 'hasFile:', hasFile)
+        return isNpy && hasFile
+      })
+      
+      console.log('[v0] NPY files found:', npyFiles.length)
+      
+      if (npyFiles.length > 0) {
+        // Process the first NPY file
+        const npyFile = npyFiles[0]
+        console.log('[v0] Processing file:', npyFile.name)
+        const result = await processNpyFile(npyFile.file)
+        console.log('[v0] Process result:', result)
+        
+        if (result.success) {
+          // Update file status
+          setFiles(prev => prev.map(f => 
+            f.id === npyFile.id ? { ...f, status: 'imported' } : f
+          ))
+          // Navigate to 2D viewer
+          navigate('/viewer-2d')
+        } else {
+          // Update file status to error
+          setFiles(prev => prev.map(f => 
+            f.id === npyFile.id ? { ...f, status: 'error', error: result.error } : f
+          ))
+          alert('Error processing file: ' + (result.error || 'Unknown error'))
+        }
+      } else {
+        console.log('[v0] No NPY files with file object found')
+        alert('Please upload a .npy file using drag-and-drop or the "Browse Files" button.')
+      }
+    } catch (err) {
+      console.error('[v0] Error in handleStartImport:', err)
+      alert('Error: ' + err.message)
+    } finally {
+      setIsImporting(false)
+    }
   }
 
   return (

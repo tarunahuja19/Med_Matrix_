@@ -453,7 +453,15 @@ export function MRIProvider({ children }) {
 export function useMRI() {
   const context = useContext(MRIContext)
   if (!context) {
-    throw new Error('useMRI must be used within an MRIProvider')
+    console.error('[v0] useMRI called outside of MRIProvider')
+    // Return a fallback object instead of throwing
+    return {
+      mriData: null,
+      isProcessing: false,
+      error: 'MRIProvider not found',
+      processNpyFile: async () => ({ success: false, error: 'MRIProvider not found' }),
+      clearData: () => {},
+    }
   }
   return context
 }
