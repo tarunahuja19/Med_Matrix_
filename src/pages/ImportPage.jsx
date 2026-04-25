@@ -8,8 +8,11 @@ function ImportPage() {
   const [dragActive, setDragActive] = useState(false)
   const [importType, setImportType] = useState('kspace')
   const [isImporting, setIsImporting] = useState(false)
-  const { processNpyFile, isProcessing } = useMRI()
+  const mriContext = useMRI()
+  const { processNpyFile, isProcessing } = mriContext
   const navigate = useNavigate()
+  
+  console.log('[v0] ImportPage rendered, MRI context:', mriContext, 'processNpyFile:', typeof processNpyFile)
 
   const handleDrag = (e) => {
     e.preventDefault()
@@ -101,15 +104,25 @@ function ImportPage() {
   }
 
   const handleStartImport = async () => {
+    console.log('[v0] handleStartImport called, files:', files)
     setIsImporting(true)
     
-    // Find NPY files to process
-    const npyFiles = files.filter(f => f.name.toLowerCase().endsWith('.npy') && f.file)
+    // Find NPY files to process (check for .file property which contains the actual File object)
+    const npyFiles = files.filter(f => {
+      const isNpy = f.name.toLowerCase().endsWith('.npy')
+      const hasFile = !!f.file
+      console.log('[v0] Checking file:', f.name, 'isNpy:', isNpy, 'hasFile:', hasFile)
+      return isNpy && hasFile
+    })
+    
+    console.log('[v0] NPY files found:', npyFiles.length)
     
     if (npyFiles.length > 0) {
       // Process the first NPY file
       const npyFile = npyFiles[0]
+      console.log('[v0] Processing file:', npyFile.name)
       const result = await processNpyFile(npyFile.file)
+      console.log('[v0] Process result:', result)
       
       if (result.success) {
         // Update file status
@@ -124,6 +137,8 @@ function ImportPage() {
           f.id === npyFile.id ? { ...f, status: 'error', error: result.error } : f
         ))
       }
+    } else {
+      console.log('[v0] No NPY files with file object found. Files in list:', files.map(f => ({ name: f.name, hasFile: !!f.file })))
     }
     
     setIsImporting(false)
