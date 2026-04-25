@@ -1,13 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { 
-  Home, 
-  Upload, 
-  BarChart3, 
-  Square, 
-  Box, 
-  Layers, 
-  Settings, 
-  HelpCircle,
+import {
+  Home,
+  Upload,
+  BarChart3,
+  Square,
+  Box,
+  Layers,
   Brain
 } from 'lucide-react'
 
@@ -18,8 +16,6 @@ const menuItems = [
   { path: '/viewer-2d', label: '2D Viewer', icon: Square },
   { path: '/viewer-3d', label: '3D Viewer', icon: Box },
   { path: '/viewer-4d', label: '4D Viewer', icon: Layers },
-  { path: '/settings', label: 'Settings', icon: Settings },
-  { path: '/help', label: 'Help', icon: HelpCircle },
 ]
 
 function MenuBar() {
@@ -33,11 +29,9 @@ function MenuBar() {
           </div>
           <div className="flex flex-col">
             <span className="text-lg font-semibold text-text-primary leading-tight">
-              NeuroScan AI
+              PHANTOMNET
             </span>
-            <span className="text-xs text-text-muted leading-tight">
-              MRI Analysis Platform
-            </span>
+
           </div>
         </div>
 
@@ -49,8 +43,8 @@ function MenuBar() {
               to={item.path}
               className={({ isActive }) =>
                 `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150
-                ${isActive 
-                  ? 'bg-primary text-white shadow-sm' 
+                ${isActive
+                  ? 'bg-primary text-white shadow-sm'
                   : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
                 }`
               }
@@ -61,11 +55,7 @@ function MenuBar() {
           ))}
         </nav>
 
-        {/* Status Indicator */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-hover rounded-full">
-          <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
-          <span className="text-xs font-medium text-text-secondary">Ready</span>
-        </div>
+
       </div>
     </header>
   )
