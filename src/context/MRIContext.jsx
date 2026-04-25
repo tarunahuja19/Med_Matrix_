@@ -38,11 +38,20 @@ function parseNpyHeader(buffer) {
 function getNpyData(buffer, header) {
   const { shape, dtype, dataOffset } = header
   
+  // Check if complex type
+  const isComplex = dtype.includes('c')
+  
   // Determine data type
   let TypedArray = Float32Array
   let bytesPerElement = 4
   
-  if (dtype.includes('f8') || dtype.includes('float64')) {
+  if (dtype.includes('c16') || dtype.includes('complex128')) {
+    TypedArray = Float64Array
+    bytesPerElement = 8
+  } else if (dtype.includes('c8') || dtype.includes('complex64')) {
+    TypedArray = Float32Array
+    bytesPerElement = 4
+  } else if (dtype.includes('f8') || dtype.includes('float64')) {
     TypedArray = Float64Array
     bytesPerElement = 8
   } else if (dtype.includes('f4') || dtype.includes('float32')) {
@@ -60,71 +69,235 @@ function getNpyData(buffer, header) {
   }
   
   const totalElements = shape.reduce((a, b) => a * b, 1)
-  const data = new TypedArray(buffer, dataOffset, totalElements)
   
-  return { data, shape }
+  if (isComplex) {
+    // Complex data: interleaved real/imag pairs
+    const data = new TypedArray(buffer, dataOffset, totalElements * 2)
+    return { data, shape, isComplex: true }
+  }
+  
+  const data = new TypedArray(buffer, dataOffset, totalElements)
+  return { data, shape, isComplex: false }
 }
 
-function renderSliceToCanvas(data, shape, sliceIndex, colormap = 'bone') {
-  let slice2D
-  let width, height
+// ──────────────────────────────────────────────
+// FFT Implementation for K-Space Reconstruction
+// ──────────────────────────────────────────────
+
+// 1D FFT using Cooley-Tukey algorithm
+function fft1d(real, imag, inverse = false) {
+  const n = real.length
+  if (n <= 1) return { real, imag }
   
-  if (shape.length === 2) {
-    // 2D array
-    height = shape[0]
-    width = shape[1]
-    slice2D = data
-  } else if (shape.length === 3) {
-    // 3D array - extract slice
-    const [depth, h, w] = shape
-    height = h
-    width = w
-    const sliceSize = height * width
-    const startIdx = sliceIndex * sliceSize
-    slice2D = data.slice(startIdx, startIdx + sliceSize)
-  } else if (shape.length === 4 && shape[3] === 1) {
-    // 4D with trailing 1 dimension
-    const [depth, h, w] = shape
-    height = h
-    width = w
-    const sliceSize = height * width
-    const startIdx = sliceIndex * sliceSize
-    slice2D = data.slice(startIdx, startIdx + sliceSize)
-  } else {
-    throw new Error(`Unsupported array shape: ${shape.join('x')}`)
+  // Bit-reversal permutation
+  const bits = Math.log2(n)
+  for (let i = 0; i < n; i++) {
+    const j = parseInt(i.toString(2).padStart(bits, '0').split('').reverse().join(''), 2)
+    if (i < j) {
+      [real[i], real[j]] = [real[j], real[i]];
+      [imag[i], imag[j]] = [imag[j], imag[i]]
+    }
   }
   
-  // Normalize data
+  // Cooley-Tukey iterative FFT
+  for (let size = 2; size <= n; size *= 2) {
+    const halfSize = size / 2
+    const angleStep = (inverse ? 2 : -2) * Math.PI / size
+    
+    for (let i = 0; i < n; i += size) {
+      for (let j = 0; j < halfSize; j++) {
+        const angle = angleStep * j
+        const tpRe = Math.cos(angle) * real[i + j + halfSize] - Math.sin(angle) * imag[i + j + halfSize]
+        const tpIm = Math.sin(angle) * real[i + j + halfSize] + Math.cos(angle) * imag[i + j + halfSize]
+        
+        real[i + j + halfSize] = real[i + j] - tpRe
+        imag[i + j + halfSize] = imag[i + j] - tpIm
+        real[i + j] += tpRe
+        imag[i + j] += tpIm
+      }
+    }
+  }
+  
+  // Normalize for inverse FFT
+  if (inverse) {
+    for (let i = 0; i < n; i++) {
+      real[i] /= n
+      imag[i] /= n
+    }
+  }
+  
+  return { real, imag }
+}
+
+// 2D inverse FFT (ifft2)
+function ifft2(kspaceReal, kspaceImag, height, width) {
+  const resultReal = new Float64Array(height * width)
+  const resultImag = new Float64Array(height * width)
+  
+  // Copy input
+  for (let i = 0; i < height * width; i++) {
+    resultReal[i] = kspaceReal[i]
+    resultImag[i] = kspaceImag[i]
+  }
+  
+  // IFFT along rows
+  for (let row = 0; row < height; row++) {
+    const rowReal = new Float64Array(width)
+    const rowImag = new Float64Array(width)
+    for (let col = 0; col < width; col++) {
+      rowReal[col] = resultReal[row * width + col]
+      rowImag[col] = resultImag[row * width + col]
+    }
+    const { real, imag } = fft1d(rowReal, rowImag, true)
+    for (let col = 0; col < width; col++) {
+      resultReal[row * width + col] = real[col]
+      resultImag[row * width + col] = imag[col]
+    }
+  }
+  
+  // IFFT along columns
+  for (let col = 0; col < width; col++) {
+    const colReal = new Float64Array(height)
+    const colImag = new Float64Array(height)
+    for (let row = 0; row < height; row++) {
+      colReal[row] = resultReal[row * width + col]
+      colImag[row] = resultImag[row * width + col]
+    }
+    const { real, imag } = fft1d(colReal, colImag, true)
+    for (let row = 0; row < height; row++) {
+      resultReal[row * width + col] = real[row]
+      resultImag[row * width + col] = imag[row]
+    }
+  }
+  
+  return { real: resultReal, imag: resultImag }
+}
+
+// ifftshift - shift zero-frequency to center (inverse of fftshift)
+function ifftshift2d(data, height, width) {
+  const result = new Float64Array(height * width)
+  const halfH = Math.floor(height / 2)
+  const halfW = Math.floor(width / 2)
+  
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const newRow = (row + halfH) % height
+      const newCol = (col + halfW) % width
+      result[newRow * width + newCol] = data[row * width + col]
+    }
+  }
+  
+  return result
+}
+
+// fftshift - shift zero-frequency to center
+function fftshift2d(data, height, width) {
+  return ifftshift2d(data, height, width) // Same operation for even dimensions
+}
+
+// Reconstruct MRI image from k-space using inverse FFT
+// Mirrors the Python: ifftshift -> ifft2 -> fftshift -> magnitude
+function reconstructFromKspace(kspaceReal, kspaceImag, height, width) {
+  // Step 1: ifftshift - shift zero-frequency component to center
+  const shiftedReal = ifftshift2d(kspaceReal, height, width)
+  const shiftedImag = ifftshift2d(kspaceImag, height, width)
+  
+  // Step 2: Apply inverse 2D FFT
+  const { real: ifftReal, imag: ifftImag } = ifft2(shiftedReal, shiftedImag, height, width)
+  
+  // Step 3: fftshift - shift back
+  const finalReal = fftshift2d(ifftReal, height, width)
+  const finalImag = fftshift2d(ifftImag, height, width)
+  
+  // Step 4: Compute magnitude
+  const magnitude = new Float64Array(height * width)
+  for (let i = 0; i < height * width; i++) {
+    magnitude[i] = Math.sqrt(finalReal[i] * finalReal[i] + finalImag[i] * finalImag[i])
+  }
+  
+  // Step 5: Normalize to [0, 1]
   let min = Infinity, max = -Infinity
-  for (let i = 0; i < slice2D.length; i++) {
-    if (slice2D[i] < min) min = slice2D[i]
-    if (slice2D[i] > max) max = slice2D[i]
+  for (let i = 0; i < magnitude.length; i++) {
+    if (magnitude[i] < min) min = magnitude[i]
+    if (magnitude[i] > max) max = magnitude[i]
   }
   const range = max - min || 1
+  for (let i = 0; i < magnitude.length; i++) {
+    magnitude[i] = (magnitude[i] - min) / range
+  }
   
-  // Create canvas
+  return { magnitude, min, max }
+}
+
+// Render reconstructed image to canvas
+function renderReconstructedImage(magnitude, height, width) {
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
   const imageData = ctx.createImageData(width, height)
   
-  // Bone colormap approximation
-  for (let i = 0; i < slice2D.length; i++) {
-    const normalized = (slice2D[i] - min) / range
+  // Grayscale rendering (like Python's cmap="gray")
+  for (let i = 0; i < magnitude.length; i++) {
+    const val = Math.round(magnitude[i] * 255)
+    const idx = i * 4
+    imageData.data[idx] = val     // R
+    imageData.data[idx + 1] = val // G
+    imageData.data[idx + 2] = val // B
+    imageData.data[idx + 3] = 255 // A
+  }
+  
+  ctx.putImageData(imageData, 0, 0)
+  
+  return canvas.toDataURL('image/png')
+}
+
+// Render k-space visualization (log magnitude)
+function renderKspaceVisualization(real, imag, height, width) {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  const imageData = ctx.createImageData(width, height)
+  
+  // Calculate log magnitude
+  const logMag = new Float64Array(height * width)
+  let min = Infinity, max = -Infinity
+  for (let i = 0; i < height * width; i++) {
+    const mag = Math.sqrt(real[i] * real[i] + imag[i] * imag[i])
+    logMag[i] = Math.log1p(mag)
+    if (logMag[i] < min) min = logMag[i]
+    if (logMag[i] > max) max = logMag[i]
+  }
+  
+  const range = max - min + 1e-8
+  
+  // Inferno-like colormap
+  for (let i = 0; i < logMag.length; i++) {
+    const t = (logMag[i] - min) / range
     
-    // Bone colormap: dark blue -> white with slight warm tint
+    // Simplified inferno colormap
     let r, g, b
-    if (normalized < 0.75) {
-      const t = normalized / 0.75
-      r = Math.round(t * 204)
-      g = Math.round(t * 204)
-      b = Math.round(t * 227)
+    if (t < 0.25) {
+      const s = t / 0.25
+      r = Math.round(s * 120)
+      g = Math.round(s * 28)
+      b = Math.round(40 + s * 60)
+    } else if (t < 0.5) {
+      const s = (t - 0.25) / 0.25
+      r = Math.round(120 + s * 80)
+      g = Math.round(28 + s * 30)
+      b = Math.round(100 - s * 30)
+    } else if (t < 0.75) {
+      const s = (t - 0.5) / 0.25
+      r = Math.round(200 + s * 40)
+      g = Math.round(58 + s * 80)
+      b = Math.round(70 - s * 50)
     } else {
-      const t = (normalized - 0.75) / 0.25
-      r = Math.round(204 + t * 51)
-      g = Math.round(204 + t * 51)
-      b = Math.round(227 + t * 28)
+      const s = (t - 0.75) / 0.25
+      r = Math.round(240 + s * 15)
+      g = Math.round(138 + s * 100)
+      b = Math.round(20 + s * 50)
     }
     
     const idx = i * 4
@@ -136,33 +309,7 @@ function renderSliceToCanvas(data, shape, sliceIndex, colormap = 'bone') {
   
   ctx.putImageData(imageData, 0, 0)
   
-  // Calculate statistics
-  let sum = 0, sumSq = 0, nonZero = 0
-  for (let i = 0; i < slice2D.length; i++) {
-    sum += slice2D[i]
-    sumSq += slice2D[i] * slice2D[i]
-    if (slice2D[i] !== 0) nonZero++
-  }
-  const mean = sum / slice2D.length
-  const variance = (sumSq / slice2D.length) - (mean * mean)
-  const std = Math.sqrt(Math.max(0, variance))
-  
-  // Sort for median
-  const sorted = [...slice2D].sort((a, b) => a - b)
-  const median = sorted[Math.floor(sorted.length / 2)]
-  
-  return {
-    imageDataUrl: canvas.toDataURL('image/png'),
-    stats: {
-      slice_index: sliceIndex,
-      min,
-      max,
-      mean,
-      std,
-      median,
-      nonzero_ratio: nonZero / slice2D.length
-    }
-  }
+  return canvas.toDataURL('image/png')
 }
 
 export function MRIProvider({ children }) {
@@ -181,46 +328,100 @@ export function MRIProvider({ children }) {
       
       // Parse NPY header
       const header = parseNpyHeader(arrayBuffer)
-      const { data, shape } = getNpyData(arrayBuffer, header)
+      const { data, shape, isComplex } = getNpyData(arrayBuffer, header)
       
-      // Store raw data for slice navigation
-      rawDataRef.current = { data, shape, arrayBuffer }
+      let height, width
+      let kspaceReal, kspaceImag
       
-      // Determine number of slices
-      let nSlices = 1
-      if (shape.length === 3) {
-        nSlices = shape[0]
-      } else if (shape.length === 4 && shape[3] === 1) {
-        nSlices = shape[0]
+      // Handle different shapes as per Python code
+      if (shape.length === 2) {
+        // 2D array (H, W)
+        height = shape[0]
+        width = shape[1]
+        
+        if (isComplex) {
+          // Complex array - interleaved real/imag
+          kspaceReal = new Float64Array(height * width)
+          kspaceImag = new Float64Array(height * width)
+          for (let i = 0; i < height * width; i++) {
+            kspaceReal[i] = data[i * 2]
+            kspaceImag[i] = data[i * 2 + 1]
+          }
+        } else {
+          // Real array - treat as magnitude, promote to complex
+          kspaceReal = new Float64Array(data)
+          kspaceImag = new Float64Array(height * width).fill(0)
+        }
+      } else if (shape.length === 3 && shape[2] === 2) {
+        // Shape (H, W, 2) - interpreted as (real, imag) channels
+        height = shape[0]
+        width = shape[1]
+        kspaceReal = new Float64Array(height * width)
+        kspaceImag = new Float64Array(height * width)
+        for (let row = 0; row < height; row++) {
+          for (let col = 0; col < width; col++) {
+            const idx = row * width + col
+            const dataIdx = (row * width + col) * 2
+            kspaceReal[idx] = data[dataIdx]
+            kspaceImag[idx] = data[dataIdx + 1]
+          }
+        }
+      } else {
+        throw new Error(`Unexpected k-space shape: ${shape.join('x')}. Expected (H, W) or (H, W, 2).`)
       }
       
-      // Render middle slice
-      const middleSlice = Math.floor(nSlices / 2)
-      const { imageDataUrl, stats } = renderSliceToCanvas(data, shape, middleSlice)
+      // Store raw data
+      rawDataRef.current = { kspaceReal, kspaceImag, height, width, shape }
       
-      // Generate stats for all slices
-      const allStats = []
-      for (let i = 0; i < nSlices; i++) {
-        const { stats: sliceStats } = renderSliceToCanvas(data, shape, i)
-        allStats.push(sliceStats)
+      // Reconstruct image from k-space using inverse FFT
+      const { magnitude, min, max } = reconstructFromKspace(kspaceReal, kspaceImag, height, width)
+      
+      // Render reconstructed image
+      const reconstructedImage = renderReconstructedImage(magnitude, height, width)
+      
+      // Render k-space visualization
+      const kspaceImage = renderKspaceVisualization(kspaceReal, kspaceImag, height, width)
+      
+      // Calculate statistics
+      let sum = 0, sumSq = 0, nonZero = 0
+      for (let i = 0; i < magnitude.length; i++) {
+        sum += magnitude[i]
+        sumSq += magnitude[i] * magnitude[i]
+        if (magnitude[i] > 0.01) nonZero++
       }
+      const mean = sum / magnitude.length
+      const variance = (sumSq / magnitude.length) - (mean * mean)
+      const std = Math.sqrt(Math.max(0, variance))
+      
+      const sorted = [...magnitude].sort((a, b) => a - b)
+      const median = sorted[Math.floor(sorted.length / 2)]
       
       setMRIData({
-        image: imageDataUrl,
+        image: reconstructedImage,
+        kspaceImage: kspaceImage,
         metadata: {
           shape: shape,
-          n_slices: nSlices,
-          current_slice: middleSlice,
-          colormap: 'bone',
+          height,
+          width,
+          dtype: header.dtype,
+          isComplex,
+          colormap: 'gray',
         },
-        statistics: allStats,
+        statistics: {
+          min: min,
+          max: max,
+          mean: mean,
+          std: std,
+          median: median,
+          nonzero_ratio: nonZero / magnitude.length
+        },
         fileName: file.name,
       })
       
       return { success: true }
     } catch (err) {
-      console.error('[v0] NPY processing error:', err)
-      const errorMessage = err.message || 'Failed to process NPY file'
+      console.error('[v0] K-space processing error:', err)
+      const errorMessage = err.message || 'Failed to process K-space file'
       setError(errorMessage)
       return { success: false, error: errorMessage }
     } finally {
@@ -228,32 +429,10 @@ export function MRIProvider({ children }) {
     }
   }, [])
 
-  const setSlice = useCallback(async (sliceIndex) => {
-    if (!mriData || !rawDataRef.current) return
-    
-    setIsProcessing(true)
-    try {
-      const { data, shape } = rawDataRef.current
-      const { imageDataUrl } = renderSliceToCanvas(data, shape, sliceIndex)
-      
-      setMRIData(prev => ({
-        ...prev,
-        image: imageDataUrl,
-        metadata: {
-          ...prev.metadata,
-          current_slice: sliceIndex,
-        },
-      }))
-    } catch (err) {
-      console.error('[v0] Error changing slice:', err)
-    } finally {
-      setIsProcessing(false)
-    }
-  }, [mriData])
-
   const clearData = useCallback(() => {
     setMRIData(null)
     setError(null)
+    rawDataRef.current = null
   }, [])
 
   return (
@@ -263,7 +442,6 @@ export function MRIProvider({ children }) {
         isProcessing,
         error,
         processNpyFile,
-        setSlice,
         clearData,
       }}
     >

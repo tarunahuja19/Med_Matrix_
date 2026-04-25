@@ -62,8 +62,8 @@ function ImportPage() {
   const getFileType = (filename) => {
     const ext = filename.split('.').pop().toLowerCase()
     const types = {
-      dat: 'K-Space', h5: 'K-Space', hdf5: 'K-Space', raw: 'K-Space',
-      dcm: 'DICOM', nii: 'NIfTI', mha: 'MetaImage', npy: 'NumPy Array'
+      dat: 'K-Space', h5: 'K-Space', hdf5: 'K-Space', raw: 'K-Space', npy: 'K-Space',
+      dcm: 'DICOM', nii: 'NIfTI', mha: 'MetaImage'
     }
     return types[ext] || 'Unknown'
   }
@@ -155,7 +155,7 @@ function ImportPage() {
               <div className={`font-medium ${importType === 'kspace' ? 'text-primary' : 'text-text-primary'}`}>
                 K-Space Data
               </div>
-              <div className="text-xs text-text-muted mt-1">.dat, .h5, .hdf5, .raw</div>
+              <div className="text-xs text-text-muted mt-1">.dat, .h5, .hdf5, .raw, .npy</div>
             </button>
             <button
               onClick={() => setImportType('mri')}
@@ -170,20 +170,6 @@ function ImportPage() {
                 MRI Images
               </div>
               <div className="text-xs text-text-muted mt-1">.dcm, .nii, .mha</div>
-            </button>
-            <button
-              onClick={() => setImportType('npy')}
-              className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                importType === 'npy'
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-primary/30'
-              }`}
-            >
-              <File className={`w-6 h-6 mb-2 ${importType === 'npy' ? 'text-primary' : 'text-text-secondary'}`} />
-              <div className={`font-medium ${importType === 'npy' ? 'text-primary' : 'text-text-primary'}`}>
-                NumPy Array
-              </div>
-              <div className="text-xs text-text-muted mt-1">.npy (2D/3D)</div>
             </button>
           </div>
         </div>
