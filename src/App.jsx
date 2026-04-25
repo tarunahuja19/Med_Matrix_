@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import { MRIProvider } from './context/MRIContext'
 import MenuBar from './components/MenuBar'
 import Sidebar from './components/Sidebar'
 import HomePage from './pages/HomePage'
@@ -15,27 +16,29 @@ import HistoricalCasesPage from './pages/HistoricalCasesPage'
 
 function App() {
   return (
-    <div className="flex flex-col h-screen bg-background">
-      <MenuBar />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-auto">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/import" element={<ImportPage />} />
-            <Route path="/analysis" element={<AnalysisPage />} />
-            <Route path="/viewer-2d" element={<Viewer2DPage />} />
-            <Route path="/viewer-3d" element={<Viewer3DPage />} />
-            <Route path="/viewer-4d" element={<Viewer4DPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/help" element={<HelpPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/risk-forecast" element={<RiskForecastPage />} />
-            <Route path="/historical-cases" element={<HistoricalCasesPage />} />
-          </Routes>
-        </main>
+    <MRIProvider>
+      <div className="flex flex-col h-screen bg-background">
+        <MenuBar />
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar />
+          <main className="flex-1 overflow-auto">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/import" element={<ImportPage />} />
+              <Route path="/analysis" element={<AnalysisPage />} />
+              <Route path="/viewer-2d" element={<Viewer2DPage />} />
+              <Route path="/viewer-3d" element={<Viewer3DPage />} />
+              <Route path="/viewer-4d" element={<Viewer4DPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/help" element={<HelpPage />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/risk-forecast" element={<RiskForecastPage />} />
+              <Route path="/historical-cases" element={<HistoricalCasesPage />} />
+            </Routes>
+          </main>
+        </div>
       </div>
-    </div>
+    </MRIProvider>
   )
 }
 
