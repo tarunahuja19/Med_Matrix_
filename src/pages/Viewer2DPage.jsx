@@ -151,7 +151,7 @@ function Viewer2DPage() {
 
         {/* Image Viewer */}
         <div className="bg-surface rounded-xl border border-border overflow-hidden">
-          <div className="relative bg-[#0d0d0d] min-h-[500px] p-6">
+          <div className="relative bg-[#0d0d0d] min-h-[600px] p-6">
             {isProcessing && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
                 <div className="flex items-center gap-3 text-white">
@@ -162,56 +162,56 @@ function Viewer2DPage() {
             )}
             
             {activeView === 'comparison' ? (
-              /* Side-by-side comparison like Python's show_comparison */
-              <div className="flex items-center justify-center gap-8">
-                <div className="flex flex-col items-center">
-                  <div className="bg-[#0d0d0d] p-4 rounded-lg">
-                    <img
-                      src={mriData.kspaceImage}
-                      alt="K-Space (log magnitude)"
-                      className="max-h-[400px] object-contain transition-transform duration-200"
-                      style={{ transform: `scale(${zoom})`, imageRendering: 'pixelated' }}
-                    />
-                  </div>
-                  <p className="mt-3 text-white text-sm font-medium">K-Space (log magnitude)</p>
-                </div>
-                <div className="flex flex-col items-center">
-                  <div className="bg-[#0d0d0d] p-4 rounded-lg">
-                    <img
-                      src={mriData.image}
-                      alt="Reconstructed Brain Image"
-                      className="max-h-[400px] object-contain transition-transform duration-200"
-                      style={{ transform: `scale(${zoom})`, imageRendering: 'pixelated' }}
-                    />
-                  </div>
-                  <p className="mt-3 text-white text-sm font-medium">Reconstructed Brain Image</p>
-                </div>
-              </div>
-            ) : activeView === 'kspace' ? (
-              /* K-Space only view */
-              <div className="flex items-center justify-center">
-                <div className="flex flex-col items-center">
+              /* Side-by-side comparison - centered and maximized */
+              <div className="absolute inset-0 flex items-center justify-center gap-8 px-8">
+                <div className="flex-1 h-full flex items-center justify-center overflow-hidden">
                   <img
                     src={mriData.kspaceImage}
-                    alt="K-Space (log magnitude)"
-                    className="max-h-[500px] object-contain transition-transform duration-200"
-                    style={{ transform: `scale(${zoom})`, imageRendering: 'pixelated' }}
+                    alt="K-Space"
+                    className="max-w-full max-h-full object-contain transition-transform duration-200"
+                    style={{ 
+                      transform: `scale(${zoom})`, 
+                      imageRendering: 'pixelated'
+                    }}
                   />
-                  <p className="mt-4 text-white text-sm font-medium">K-Space (log magnitude)</p>
                 </div>
-              </div>
-            ) : (
-              /* Reconstructed only view */
-              <div className="flex items-center justify-center">
-                <div className="flex flex-col items-center">
+                <div className="flex-1 h-full flex items-center justify-center overflow-hidden">
                   <img
                     src={mriData.image}
                     alt="Reconstructed Brain Image"
-                    className="max-h-[500px] object-contain transition-transform duration-200"
-                    style={{ transform: `scale(${zoom})`, imageRendering: 'pixelated' }}
+                    className="max-w-full max-h-full object-contain transition-transform duration-200"
+                    style={{ 
+                      transform: `scale(${zoom})`, 
+                      imageRendering: 'pixelated'
+                    }}
                   />
-                  <p className="mt-4 text-white text-sm font-medium">Reconstructed Brain Image</p>
                 </div>
+              </div>
+            ) : activeView === 'kspace' ? (
+              /* K-Space only view - centered and maximized */
+              <div className="absolute inset-0 flex items-center justify-center">
+                <img
+                  src={mriData.kspaceImage}
+                  alt="K-Space"
+                  className="max-w-full max-h-full object-contain transition-transform duration-200"
+                  style={{ 
+                    transform: `scale(${zoom})`, 
+                    imageRendering: 'pixelated'
+                  }}
+                />
+              </div>
+            ) : (
+              /* Reconstructed only view - centered and maximized */
+              <div className="absolute inset-0 flex items-center justify-center">
+                <img
+                  src={mriData.image}
+                  alt="Reconstructed Brain Image"
+                  className="max-w-full max-h-full object-contain transition-transform duration-200"
+                  style={{ 
+                    transform: `scale(${zoom})`, 
+                    imageRendering: 'pixelated'
+                  }}
+                />
               </div>
             )}
           </div>
