@@ -1,10 +1,18 @@
 import { useState } from 'react'
-import { Upload, FolderOpen, File, X, Check, AlertCircle, HardDrive } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Upload, FolderOpen, File, X, Check, AlertCircle, HardDrive, Loader2 } from 'lucide-react'
+import { useMRI } from '../context/MRIContext'
 
 function ImportPage() {
   const [files, setFiles] = useState([])
   const [dragActive, setDragActive] = useState(false)
   const [importType, setImportType] = useState('kspace')
+  const [isImporting, setIsImporting] = useState(false)
+  const mriContext = useMRI()
+  const { processNpyFile, isProcessing } = mriContext
+  const navigate = useNavigate()
+  
+  console.log('[v0] ImportPage rendered, MRI context:', mriContext, 'processNpyFile:', typeof processNpyFile)
 
   const handleDrag = (e) => {
     e.preventDefault()
@@ -36,7 +44,8 @@ function ImportPage() {
       name: file.name,
       size: formatFileSize(file.size),
       type: getFileType(file.name),
-      status: 'ready'
+      status: 'ready',
+      file: file // Keep reference to actual file object for processing
     }))
     setFiles(prev => [...prev, ...fileObjects])
   }
@@ -56,7 +65,7 @@ function ImportPage() {
   const getFileType = (filename) => {
     const ext = filename.split('.').pop().toLowerCase()
     const types = {
-      dat: 'K-Space', h5: 'K-Space', hdf5: 'K-Space', raw: 'K-Space',
+      dat: 'K-Space', h5: 'K-Space', hdf5: 'K-Space', raw: 'K-Space', npy: 'K-Space',
       dcm: 'DICOM', nii: 'NIfTI', mha: 'MetaImage'
     }
     return types[ext] || 'Unknown'
@@ -94,6 +103,63 @@ function ImportPage() {
     }
   }
 
+  const handleStartImport = async () => {
+    console.log('[v0] handleStartImport called')
+    console.log('[v0] Files count:', files.length)
+    console.log('[v0] processNpyFile available:', typeof processNpyFile === 'function')
+    
+    if (typeof processNpyFile !== 'function') {
+      console.error('[v0] processNpyFile is not a function!')
+      alert('Error: MRI processing context not initialized. Please refresh the page.')
+      return
+    }
+    
+    setIsImporting(true)
+    
+    try {
+      // Find NPY files to process (check for .file property which contains the actual File object)
+      const npyFiles = files.filter(f => {
+        const isNpy = f.name.toLowerCase().endsWith('.npy')
+        const hasFile = !!f.file
+        console.log('[v0] Checking file:', f.name, 'isNpy:', isNpy, 'hasFile:', hasFile)
+        return isNpy && hasFile
+      })
+      
+      console.log('[v0] NPY files found:', npyFiles.length)
+      
+      if (npyFiles.length > 0) {
+        // Process the first NPY file
+        const npyFile = npyFiles[0]
+        console.log('[v0] Processing file:', npyFile.name)
+        const result = await processNpyFile(npyFile.file)
+        console.log('[v0] Process result:', result)
+        
+        if (result.success) {
+          // Update file status
+          setFiles(prev => prev.map(f => 
+            f.id === npyFile.id ? { ...f, status: 'imported' } : f
+          ))
+          // Navigate to 2D viewer
+          navigate('/viewer-2d')
+        } else {
+          // Update file status to error
+          setFiles(prev => prev.map(f => 
+            f.id === npyFile.id ? { ...f, status: 'error', error: result.error } : f
+          ))
+          alert('Error processing file: ' + (result.error || 'Unknown error'))
+        }
+      } else {
+        console.log('[v0] No NPY files with file object found')
+        alert('Please upload a .npy file using drag-and-drop or the "Browse Files" button.')
+      }
+    } catch (err) {
+      console.error('[v0] Error in handleStartImport:', err)
+      alert('Error: ' + err.message)
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   return (
     <div className="page-transition p-8 h-full overflow-auto">
       <div className="max-w-4xl mx-auto">
@@ -120,7 +186,7 @@ function ImportPage() {
               <div className={`font-medium ${importType === 'kspace' ? 'text-primary' : 'text-text-primary'}`}>
                 K-Space Data
               </div>
-              <div className="text-xs text-text-muted mt-1">.dat, .h5, .hdf5, .raw</div>
+              <div className="text-xs text-text-muted mt-1">.dat, .h5, .hdf5, .raw, .npy</div>
             </button>
             <button
               onClick={() => setImportType('mri')}
@@ -169,7 +235,7 @@ function ImportPage() {
                 multiple
                 className="hidden"
                 onChange={handleFileSelect}
-                accept=".dat,.h5,.hdf5,.raw,.dcm,.nii,.mha"
+                accept=".dat,.h5,.hdf5,.raw,.dcm,.nii,.mha,.npy"
               />
             </label>
             <button
@@ -226,8 +292,13 @@ function ImportPage() {
               ))}
             </div>
             <div className="px-6 py-4 border-t border-border bg-surface-hover">
-              <button className="w-full py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors">
-                Start Import & Analysis
+              <button 
+                onClick={handleStartImport}
+                disabled={isImporting || isProcessing}
+                className="w-full py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {(isImporting || isProcessing) && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isImporting || isProcessing ? 'Processing...' : 'Start Import & Analysis'}
               </button>
             </div>
           </div>
@@ -237,8 +308,8 @@ function ImportPage() {
         <div className="mt-6 flex items-start gap-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
           <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
           <div className="text-sm text-text-secondary">
-            <strong className="text-text-primary">Supported formats:</strong> K-space data (.dat, .h5, .hdf5, .raw) 
-            and standard MRI formats (.dcm, .nii, .nii.gz, .mha). Large datasets may take longer to process.
+            <strong className="text-text-primary">Supported formats:</strong> K-space data (.dat, .h5, .hdf5, .raw), 
+            NumPy arrays (.npy), and standard MRI formats (.dcm, .nii, .nii.gz, .mha). Large datasets may take longer to process.
           </div>
         </div>
       </div>
