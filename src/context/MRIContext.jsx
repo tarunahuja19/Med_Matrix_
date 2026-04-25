@@ -333,7 +333,11 @@ export function MRIProvider({ children }) {
       let height, width
       let kspaceReal, kspaceImag
       
-      // Handle different shapes as per Python code
+      // Handle different shapes
+      let nSlices = 1
+      let currentSlice = 0
+      let allSlicesData = null
+      
       if (shape.length === 2) {
         // 2D array (H, W)
         height = shape[0]
@@ -366,12 +370,52 @@ export function MRIProvider({ children }) {
             kspaceImag[idx] = data[dataIdx + 1]
           }
         }
+      } else if (shape.length === 3) {
+        // 3D array (N, H, W) - N slices of H x W k-space data
+        nSlices = shape[0]
+        height = shape[1]
+        width = shape[2]
+        currentSlice = Math.floor(nSlices / 2) // Start at middle slice
+        
+        // Store all slices data for later navigation
+        allSlicesData = data
+        
+        // Extract the current slice
+        const sliceSize = height * width
+        const sliceOffset = currentSlice * sliceSize
+        
+        if (isComplex) {
+          kspaceReal = new Float64Array(height * width)
+          kspaceImag = new Float64Array(height * width)
+          for (let i = 0; i < sliceSize; i++) {
+            kspaceReal[i] = data[(sliceOffset + i) * 2]
+            kspaceImag[i] = data[(sliceOffset + i) * 2 + 1]
+          }
+        } else {
+          // Real array - extract slice and treat as real k-space
+          kspaceReal = new Float64Array(sliceSize)
+          kspaceImag = new Float64Array(sliceSize).fill(0)
+          for (let i = 0; i < sliceSize; i++) {
+            kspaceReal[i] = data[sliceOffset + i]
+          }
+        }
       } else {
-        throw new Error(`Unexpected k-space shape: ${shape.join('x')}. Expected (H, W) or (H, W, 2).`)
+        throw new Error(`Unexpected k-space shape: ${shape.join('x')}. Expected (H, W), (H, W, 2), or (N, H, W).`)
       }
       
-      // Store raw data
-      rawDataRef.current = { kspaceReal, kspaceImag, height, width, shape }
+      // Store raw data for slice navigation
+      rawDataRef.current = { 
+        kspaceReal, 
+        kspaceImag, 
+        height, 
+        width, 
+        shape, 
+        nSlices, 
+        currentSlice, 
+        allSlicesData, 
+        isComplex,
+        header 
+      }
       
       // Reconstruct image from k-space using inverse FFT
       const { magnitude, min, max } = reconstructFromKspace(kspaceReal, kspaceImag, height, width)
@@ -406,6 +450,8 @@ export function MRIProvider({ children }) {
           dtype: header.dtype,
           isComplex,
           colormap: 'gray',
+          nSlices,
+          currentSlice,
         },
         statistics: {
           min: min,
@@ -429,6 +475,75 @@ export function MRIProvider({ children }) {
     }
   }, [])
 
+  const setSlice = useCallback((sliceIndex) => {
+    if (!rawDataRef.current || !rawDataRef.current.allSlicesData) return
+    
+    const { allSlicesData, height, width, nSlices, isComplex, shape, header } = rawDataRef.current
+    
+    if (sliceIndex < 0 || sliceIndex >= nSlices) return
+    
+    const sliceSize = height * width
+    const sliceOffset = sliceIndex * sliceSize
+    
+    let kspaceReal, kspaceImag
+    
+    if (isComplex) {
+      kspaceReal = new Float64Array(sliceSize)
+      kspaceImag = new Float64Array(sliceSize)
+      for (let i = 0; i < sliceSize; i++) {
+        kspaceReal[i] = allSlicesData[(sliceOffset + i) * 2]
+        kspaceImag[i] = allSlicesData[(sliceOffset + i) * 2 + 1]
+      }
+    } else {
+      kspaceReal = new Float64Array(sliceSize)
+      kspaceImag = new Float64Array(sliceSize).fill(0)
+      for (let i = 0; i < sliceSize; i++) {
+        kspaceReal[i] = allSlicesData[sliceOffset + i]
+      }
+    }
+    
+    // Reconstruct image
+    const { magnitude, min, max } = reconstructFromKspace(kspaceReal, kspaceImag, height, width)
+    const reconstructedImage = renderReconstructedImage(magnitude, height, width)
+    const kspaceImage = renderKspaceVisualization(kspaceReal, kspaceImag, height, width)
+    
+    // Calculate statistics
+    let sum = 0, sumSq = 0, nonZero = 0
+    for (let i = 0; i < magnitude.length; i++) {
+      sum += magnitude[i]
+      sumSq += magnitude[i] * magnitude[i]
+      if (magnitude[i] > 0.01) nonZero++
+    }
+    const mean = sum / magnitude.length
+    const variance = (sumSq / magnitude.length) - (mean * mean)
+    const std = Math.sqrt(Math.max(0, variance))
+    const sorted = [...magnitude].sort((a, b) => a - b)
+    const median = sorted[Math.floor(sorted.length / 2)]
+    
+    // Update state
+    rawDataRef.current.currentSlice = sliceIndex
+    rawDataRef.current.kspaceReal = kspaceReal
+    rawDataRef.current.kspaceImag = kspaceImag
+    
+    setMRIData(prev => ({
+      ...prev,
+      image: reconstructedImage,
+      kspaceImage: kspaceImage,
+      metadata: {
+        ...prev.metadata,
+        currentSlice: sliceIndex,
+      },
+      statistics: {
+        min,
+        max,
+        mean,
+        std,
+        median,
+        nonzero_ratio: nonZero / magnitude.length
+      },
+    }))
+  }, [])
+  
   const clearData = useCallback(() => {
     setMRIData(null)
     setError(null)
@@ -442,6 +557,7 @@ export function MRIProvider({ children }) {
         isProcessing,
         error,
         processNpyFile,
+        setSlice,
         clearData,
       }}
     >
@@ -460,6 +576,7 @@ export function useMRI() {
       isProcessing: false,
       error: 'MRIProvider not found',
       processNpyFile: async () => ({ success: false, error: 'MRIProvider not found' }),
+      setSlice: () => {},
       clearData: () => {},
     }
   }

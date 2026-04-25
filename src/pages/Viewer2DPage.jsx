@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Square, AlertCircle, ZoomIn, ZoomOut, RotateCcw, Loader2, Info, BarChart3 } from 'lucide-react'
+import { Square, AlertCircle, ZoomIn, ZoomOut, RotateCcw, Loader2, Info, BarChart3, ChevronLeft, ChevronRight, Layers } from 'lucide-react'
 import { useMRI } from '../context/MRIContext'
 
 function Viewer2DPage() {
-  const { mriData, isProcessing } = useMRI()
+  const { mriData, isProcessing, setSlice } = useMRI()
   const [zoom, setZoom] = useState(1)
   const [activeView, setActiveView] = useState('comparison') // 'comparison', 'kspace', 'reconstructed'
 
@@ -11,6 +11,25 @@ function Viewer2DPage() {
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.25, 0.5))
   const handleReset = () => {
     setZoom(1)
+  }
+  
+  const nSlices = mriData?.metadata?.nSlices || 1
+  const currentSlice = mriData?.metadata?.currentSlice || 0
+  
+  const handlePrevSlice = () => {
+    if (currentSlice > 0) {
+      setSlice(currentSlice - 1)
+    }
+  }
+  
+  const handleNextSlice = () => {
+    if (currentSlice < nSlices - 1) {
+      setSlice(currentSlice + 1)
+    }
+  }
+  
+  const handleSliceChange = (e) => {
+    setSlice(parseInt(e.target.value, 10))
   }
 
   // No data state
