@@ -19,6 +19,7 @@ export const APP_CONFIG = {
 
   // UI Configuration
   UI: {
+<<<<<<< HEAD
     // Theme colors - Teal palette
     COLORS: {
       BG_PRIMARY: '#D1EEEA',
@@ -29,6 +30,18 @@ export const APP_CONFIG = {
       TEXT_MUTED: '#599BAE',
       BORDER: '#A1D7D6',
       ACCENT_BLUE: '#3F7994',
+=======
+    // Theme colors
+    COLORS: {
+      BG_PRIMARY: '#0f172a',
+      BG_SECONDARY: '#1e293b',
+      BG_TERTIARY: '#0f1429',
+      TEXT_PRIMARY: '#e2e8f0',
+      TEXT_SECONDARY: '#94a3b8',
+      TEXT_MUTED: '#64748b',
+      BORDER: '#334155',
+      ACCENT_BLUE: '#2563eb',
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
       ACCENT_RED: '#ef4444',
       ACCENT_ORANGE: '#f97316',
       ACCENT_GREEN: '#22c55e',
@@ -117,9 +130,15 @@ export const APP_CONFIG = {
 
   // Chart Configuration
   CHARTS: {
+<<<<<<< HEAD
     BACKGROUND_COLOR: '#D1EEEA',
     TEXT_COLOR: '#2A5674',
     GRID_COLOR: '#A1D7D6',
+=======
+    BACKGROUND_COLOR: '#1a2332',
+    TEXT_COLOR: '#e0e0e0',
+    GRID_COLOR: '#2a3f5f',
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
     ANIMATION_DURATION: 800, // ms
   },
 

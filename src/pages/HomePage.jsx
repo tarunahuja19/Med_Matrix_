@@ -16,7 +16,11 @@ function HomePage() {
                 </div>
 
                 {/* Main Headline */}
+<<<<<<< HEAD
                 <h1 className="text-5xl lg:text-6xl font-bold leading-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+=======
+                <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
                   <span className="text-gray-800">What the scan</span>
                   <br />
                   <span className="text-gray-800">misses,</span>

@@ -24,11 +24,22 @@ function MenuBar() {
       <div className="flex items-center justify-between px-4 py-2">
         {/* Logo Section */}
         <div className="flex items-center gap-3">
+<<<<<<< HEAD
 
           <div className="flex flex-col">
             <NavLink to="/" className="text-lg font-bold text-text-primary leading-tight hover:opacity-80 transition-opacity" style={{ fontFamily: "'Sora', sans-serif" }}>
               PhantomNet
             </NavLink>
+=======
+          <div className="flex items-center justify-center w-9 h-9 bg-primary rounded-lg">
+            <Brain className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-lg font-semibold text-text-primary leading-tight">
+              PHANTOMNET
+            </span>
+
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
           </div>
         </div>
 

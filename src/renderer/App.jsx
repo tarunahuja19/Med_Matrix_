@@ -32,8 +32,13 @@ function App() {
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
+<<<<<<< HEAD
         backgroundColor: '#D1EEEA',
         color: '#2A5674',
+=======
+        backgroundColor: '#0a0e27',
+        color: '#e0e0e0',
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
       }}
     >
       <Header modelMetrics={analysisResult?.modelMetrics} />
@@ -52,7 +57,11 @@ function App() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>
           {isLoading ? (
             // Loading Section
+<<<<<<< HEAD
             <div style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #A1D7D6', display: 'flex' }}>
+=======
+            <div style={{ flex: 1, backgroundColor: '#0f1429', borderRadius: '8px', border: '1px solid #2a3f5f', display: 'flex' }}>
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
               <Spinner message="Analyzing MRI scan... Processing kSpace data..." />
             </div>
           ) : !analysisResult ? (
@@ -65,9 +74,15 @@ function App() {
             <>
               <div
                 style={{
+<<<<<<< HEAD
                   backgroundColor: '#ffffff',
                   borderRadius: '8px',
                   border: '1px solid #A1D7D6',
+=======
+                  backgroundColor: '#0f1429',
+                  borderRadius: '8px',
+                  border: '1px solid #2a3f5f',
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
                   padding: '12px',
                   flex: 1,
                   minHeight: 0,
@@ -80,7 +95,11 @@ function App() {
                     margin: '0 0 8px 0',
                     fontSize: '14px',
                     fontWeight: '600',
+<<<<<<< HEAD
                     color: '#2A5674',
+=======
+                    color: '#e0e0e0',
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
                   }}
                 >
                   3D Brain Visualization
@@ -121,9 +140,15 @@ function App() {
             // Welcome message during file upload
             <div
               style={{
+<<<<<<< HEAD
                 backgroundColor: '#ffffff',
                 borderRadius: '8px',
                 border: '1px solid #A1D7D6',
+=======
+                backgroundColor: '#0f1429',
+                borderRadius: '8px',
+                border: '1px solid #2a3f5f',
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
                 padding: '24px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -133,8 +158,13 @@ function App() {
                 flex: 1,
               }}
             >
+<<<<<<< HEAD
               <div style={{ fontSize: '14px', lineHeight: '1.8', color: '#3F7994' }}>
                 <div style={{ marginBottom: '16px', fontSize: '18px', fontWeight: '600', color: '#2A5674', fontFamily: "'Space Grotesk', sans-serif" }}>
+=======
+              <div style={{ fontSize: '14px', lineHeight: '1.8', color: '#aaaaaa' }}>
+                <div style={{ marginBottom: '16px', fontSize: '16px', fontWeight: '600' }}>
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
                   Welcome to Mamba 2 Brain Analysis
                 </div>
                 <div>
@@ -171,16 +201,26 @@ function App() {
       {analysisResult && (
         <div
           style={{
+<<<<<<< HEAD
             backgroundColor: '#ffffff',
             borderTop: '1px solid #A1D7D6',
+=======
+            backgroundColor: '#0f1429',
+            borderTop: '1px solid #2a3f5f',
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
             padding: '12px 24px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
           }}
         >
+<<<<<<< HEAD
           <div style={{ fontSize: '12px', color: '#599BAE' }}>
             File: <span style={{ color: '#2A5674', fontWeight: '600' }}>
+=======
+          <div style={{ fontSize: '12px', color: '#888888' }}>
+            File: <span style={{ color: '#e0e0e0', fontWeight: '600' }}>
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
               {analysisResult.fileName}
             </span>{' '}
             | Analyzed: {new Date(analysisResult.analysisTimestamp).toLocaleString()}
@@ -193,20 +233,34 @@ function App() {
               }}
               style={{
                 padding: '8px 16px',
+<<<<<<< HEAD
                 backgroundColor: '#D1EEEA',
                 border: '1px solid #A1D7D6',
                 borderRadius: '4px',
                 color: '#2A5674',
+=======
+                backgroundColor: '#1a2332',
+                border: '1px solid #2a3f5f',
+                borderRadius: '4px',
+                color: '#e0e0e0',
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
                 cursor: 'pointer',
                 fontSize: '12px',
                 fontWeight: '600',
                 transition: 'all 0.2s',
               }}
               onMouseEnter={(e) => {
+<<<<<<< HEAD
                 e.currentTarget.style.backgroundColor = '#A1D7D6'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = '#D1EEEA'
+=======
+                e.currentTarget.style.backgroundColor = '#2a3f5f'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#1a2332'
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
               }}
             >
               Upload Another File
@@ -217,7 +271,11 @@ function App() {
               }}
               style={{
                 padding: '8px 16px',
+<<<<<<< HEAD
                 backgroundColor: '#3F7994',
+=======
+                backgroundColor: '#4a7cff',
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
                 border: 'none',
                 borderRadius: '4px',
                 color: '#fff',
@@ -227,10 +285,17 @@ function App() {
                 transition: 'all 0.2s',
               }}
               onMouseEnter={(e) => {
+<<<<<<< HEAD
                 e.currentTarget.style.backgroundColor = '#2A5674'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = '#3F7994'
+=======
+                e.currentTarget.style.backgroundColor = '#3a6cef'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#4a7cff'
+>>>>>>> 736863206e35dfdd441e7f4a8504d52a28d54ab0
               }}
             >
               Generate Report
